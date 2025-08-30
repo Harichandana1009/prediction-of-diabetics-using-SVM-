@@ -5,39 +5,48 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
+# ⚡ MUST BE FIRST: Set page configuration
+st.set_page_config(page_title="Diabetes Prediction", page_icon="🩺", layout="centered")
+
 # ================================
 # Load and Train Model (cached)
 # ================================
 @st.cache_resource
 def load_model():
+    # Load dataset from repo root
     df = pd.read_csv("diabetes.csv")
-
+    
+    # Features and target
     X = df.drop('Outcome', axis=1)
     y = df['Outcome']
-
+    
+    # Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-
+    
+    # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X_scaled, y, test_size=0.2, random_state=42
     )
-
+    
+    # Hyperparameter tuning with GridSearchCV
     param_grid = {
         'C': [0.1, 1, 10],
         'gamma': [0.01, 0.1, 1],
         'kernel': ['rbf', 'linear']
     }
+    
     grid = GridSearchCV(SVC(probability=True), param_grid, cv=5, scoring='accuracy')
     grid.fit(X_train, y_train)
-
+    
     return grid.best_estimator_, scaler
 
+# Load model and scaler
 model, scaler = load_model()
 
 # ================================
 # Streamlit UI
 # ================================
-st.set_page_config(page_title="Diabetes Prediction", page_icon="🩺", layout="centered")
 st.title("🩺 Diabetes Prediction using SVM")
 st.write("This app predicts the likelihood of diabetes based on medical details.")
 
@@ -55,10 +64,11 @@ age = st.number_input("Age", min_value=1, max_value=120, value=30)
 if st.button("🔍 Predict"):
     user_input = np.array([[pregnancies, glucose, blood_pressure, skin_thickness,
                             insulin, bmi, dpf, age]])
+    
     user_input_scaled = scaler.transform(user_input)
     prediction = model.predict(user_input_scaled)[0]
     prob = model.predict_proba(user_input_scaled)[0][1]
-
+    
     if prediction == 1:
         st.error(f"🚨 The person is LIKELY to develop diabetes.\nConfidence: {prob*100:.2f}%")
     else:
